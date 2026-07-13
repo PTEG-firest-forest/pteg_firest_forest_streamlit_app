@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 from pymongo import MongoClient
+from data.name_mappings import hotspots_data_name_mapping, climate_vars_name_mapping, spectral_index_name_mapping
 
 # **************************************************************
 # MongoDB Connector Class
@@ -79,6 +80,7 @@ class mongo_connector:
         try:
             cursor = self.collection.aggregate(pipeline)
             df = pd.DataFrame(list(cursor))
+            df.rename(columns=hotspots_data_name_mapping, inplace=True)
             if not df.empty:
                 # Limpiar la columna _id de BSON a string para evitar problemas de serialización en Streamlit
                 df["_id"] = df["_id"].astype(str)

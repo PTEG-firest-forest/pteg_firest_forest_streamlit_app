@@ -31,15 +31,15 @@ def render_content(df_data, selected_year, selected_quarter):
         
         # Permitir al usuario expandir las columnas complejas (cv, si) si lo desea, 
         # o mostrar el dataframe general
-        columns_to_show = ["_id", "date", "lat", "lon", "frp", "conf", "f_type", "inst"]
+        columns_to_show = ["_id", "acq_date", "latitude", "longitude", "frp", "confidence", "fire_type", "instrument"]
         existing_columns = [col for col in columns_to_show if col in df_data.columns]
         
         st.dataframe(df_data[existing_columns], width='stretch')
         
         # Mostrar un ejemplo del primer registro anidado (cv/si) de forma limpia
         with st.expander("🔍 Ver detalle de variables climáticas anidadas (Primer Registro)"):
-            if "cv" in df_data.columns and not df_data["cv"].isna().all():
-                st.json(df_data["cv"].iloc[0])
+            if "climate_vars" in df_data.columns and not df_data["climate_vars"].isna().all():
+                st.json(df_data["climate_vars"].iloc[0])
 
     else:
         st.warning(f"No se encontraron datos para el año {selected_year} en el Trimestre {selected_quarter}.")
