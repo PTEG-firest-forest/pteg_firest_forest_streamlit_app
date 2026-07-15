@@ -1,16 +1,17 @@
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import streamlit as st
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 
+@st.cache_data
 def crear_rejilla_hexagonal_4326(gdf_roi, radio_km):
     """
     Toma un GeoDataFrame en EPSG:4326, lo proyecta a un sistema métrico local,
     genera los hexágonos de 'radio_km' y los devuelve en EPSG:4326.
     """
     # 1. Proyectar a un sistema métrico local automáticamente (UTM ideal para la zona)
-    # estimate_utm_crs es excelente porque encuentra la zona UTM perfecta para tu ROI
     crs_metrico = gdf_roi.estimate_utm_crs()
     roi_proyectada = gdf_roi.to_crs(crs_metrico)
 
@@ -61,31 +62,17 @@ def crear_rejilla_hexagonal_4326(gdf_roi, radio_km):
     return gdf_hex_final
 
 
+@st.cache_data
 def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
     """
     Procesa datos de hexágonos y puntos para generar un resumen por hexágono.
-
-    Parameters:
-    -----------
-    gdf_hexagonos : geopandas.GeoDataFrame
-        GeoDataFrame con los hexágonos de la región de interés
-        Debe tener columna 'geometry' con los polígonos
-    df_datos : pandas.DataFrame
-        DataFrame con los datos de los puntos (hotspots y variables ambientales)
-
-    Returns:
-    --------
-    pandas.DataFrame
-        DataFrame con el resumen por hexágono
     """
-
     # Crear copias para no modificar los originales
     gdf_hex = gdf_hexagonos.copy()
     df_datos = df_datos.copy()
 
     # Asegurar que el CRS sea compatible
     if gdf_hex.crs is None:
-        # Si no tiene CRS, asumir WGS84 (EPSG:4326)
         gdf_hex = gdf_hex.set_crs("EPSG:4326", allow_override=True)
 
     # Ensure acq_date is datetime type
@@ -101,15 +88,15 @@ def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
     # Realizar join espacial para asignar cada punto a su hexágono
     gdf_puntos_con_hex = gpd.sjoin(
         gdf_puntos,
-        gdf_hex[["geometry"]],  # Solo necesitamos la geometría para el join
+        gdf_hex[["geometry"]],
         how="left",
         predicate="within",
     )
 
-    # Agrupar por índice del hexágono (index_right es el índice del hexágono que contiene al punto)
+    # Agrupar por índice del hexágono
     grouped = gdf_puntos_con_hex.groupby("index_right")
 
-    # Calcular estadísticas agregadas, incluyendo longitude, latitude y acq_date
+    # Calcular estadísticas agregadas
     df_agregado = grouped.agg(
         {
             "temperature_2m_mean_(C)": "mean",
@@ -120,10 +107,10 @@ def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
             "land_cover_class": lambda x: (
                 x.mode().iloc[0] if not x.mode().empty else None
             ),
-            "longitude": "mean",  # Mean longitude of hotspots in the hexagon
-            "latitude": "mean",  # Mean latitude of hotspots in the hexagon
-            "acq_date": "min",  # Earliest acquisition date of hotspots in the hexagon
-            "index": "count",  # Count points (hotspots)
+            "longitude": "mean",
+            "latitude": "mean",
+            "acq_date": "min",
+            "index": "count",
         }
     ).reset_index()
 
@@ -143,7 +130,6 @@ def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
     ]
 
     # Asegurar que todos los hexágonos estén representados
-    # Crear DataFrame con todos los índices de hexágonos
     df_completo = pd.DataFrame({"index": gdf_hex.index})
     df_resultado = df_completo.merge(df_agregado, on="index", how="left")
 
@@ -152,18 +138,14 @@ def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
         df_resultado["number_hotspots"].fillna(0).astype(int)
     )
 
-    # Para las demás columnas, mantener NaN para hexágonos sin datos
-    # o podrías rellenar con 0 si prefieres
-    # df_resultado = df_resultado.fillna(0)
-
     return df_resultado
 
 
+@st.cache_data
 def procesar_datos_hexagonales_con_geometria(gdf_hexagonos, df_datos):
     """
     Versión que también mantiene la geometría de los hexágonos en el resultado.
     """
-
     # Obtener el DataFrame resumen
     df_resultado = procesar_datos_hexagonales(gdf_hexagonos, df_datos)
 

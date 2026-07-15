@@ -2,10 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import pandas as pd
+import streamlit as st
 
 from .test_functions import df_climate_values
 from .auxiliar_functions import analyze_climate_by_quarter
 
+@st.cache_data
 def plot_climate_variable_with_variance(df_summary, climate_variable_column_name='temperature_2m_mean_(C)', values_list_column_name='Values_List', title_suffix="Evolución a lo largo del tiempo"):
     """
     Generates a line plot showing the mean of a specified climate variable and its variance (mean +/- 1 Std. Dev.)
@@ -13,14 +15,16 @@ def plot_climate_variable_with_variance(df_summary, climate_variable_column_name
 
     Args:
         df_summary (pd.DataFrame): A DataFrame containing summarized climate data
-                                        with 'Year', 'Quarter', 'Mean_Value', and 'Values_List' columns.
+                                    with 'Year', 'Quarter', 'Mean_Value', and 'Values_List' columns.
         climate_variable_column_name (str): The name of the climate variable column being analyzed (for labels).
         values_list_column_name (str): The name of the column in df_summary that contains the list of values.
         title_suffix (str): A suffix for the plot title. The full title will be 'Mean of [variable name] + suffix'.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
     """
     if df_summary.empty:
-        print("Input DataFrame is empty. Cannot generate plot.")
-        return
+        return None
 
     # Make a copy to avoid modifying the original DataFrame passed in
     df_plot = df_summary.copy()
@@ -73,13 +77,14 @@ def plot_climate_variable_with_variance(df_summary, climate_variable_column_name
     ax2.legend(lines + lines2, labels + labels2, loc='upper left')
 
     plt.tight_layout() # Adjust layout to prevent overlapping
-    plt.show()
+    return fig
 
 
 
 
 
 
+@st.cache_data
 def plot_quarterly_climate_comparison(df_resumen, years_to_compare, climate_variable_column_name='temperature_2m_mean_(C)', values_list_column_name='Values_List'):
     """
     Generates box plots comparing the distribution of a specified climate variable across quarters
@@ -87,14 +92,16 @@ def plot_quarterly_climate_comparison(df_resumen, years_to_compare, climate_vari
 
     Args:
         df_resumen (pd.DataFrame): The DataFrame containing summarized climate data
-                                        with 'Year', 'Quarter', and the specified values_list_column_name.
+                                    with 'Year', 'Quarter', and the specified values_list_column_name.
         years_to_compare (list): A list of integer years for which to generate the comparison plots.
         climate_variable_column_name (str): The name of the climate variable column being analyzed (for labels).
         values_list_column_name (str): The name of the column in df_resumen that contains the list of values.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
     """
     if df_resumen.empty:
-        print("Input summary DataFrame is empty. Cannot generate plots.")
-        return
+        return None
 
     all_quarters_data = []
 
@@ -111,12 +118,11 @@ def plot_quarterly_climate_comparison(df_resumen, years_to_compare, climate_vari
             # else: print statement already handled by df_climate_values
 
     if not all_quarters_data:
-        print(f"No {climate_variable_column_name} data found for the specified years and quarters: {years_to_compare}. Cannot generate plots.")
-        return
+        return None
 
     df_comparacion_anual = pd.concat(all_quarters_data)
 
-    plt.figure(figsize=(12, 7))
+    fig = plt.figure(figsize=(12, 7))
     sns.boxplot(x='Quarter_Label', y='Climate_Values', data=df_comparacion_anual, hue='Quarter_Label', palette='viridis', legend=False)
     plt.title(f'Comparación de la Distribución de Valores de {climate_variable_column_name} ({min(years_to_compare)}-Q1 a {max(years_to_compare)}-Q4)')
     plt.xlabel('Año-Trimestre')
@@ -124,21 +130,24 @@ def plot_quarterly_climate_comparison(df_resumen, years_to_compare, climate_vari
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.xticks(rotation=45, ha='right') # Rotate labels for better readability
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 
 
 
+@st.cache_data
 def plot_all_climate_variables_time_series(df_input, title_suffix="Evolución a lo largo del tiempo", columns_to_plot=[]):
     """
     Generates a line plot comparing the mean trends of climate variables on a single canvas,
     each with its own y-axis scale, and adds background bars showing the total number of
     hotspots (where each row in df_input represents one hotspot).
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
     """
     if df_input.empty:
-        print("Input DataFrame is empty. Cannot generate plots for climate variables.")
-        return
+        return None
 
     selected_climate_variable_cols = [
         'temperature_2m_mean_(C)',
@@ -151,8 +160,6 @@ def plot_all_climate_variables_time_series(df_input, title_suffix="Evolución a 
 
     if columns_to_plot:
         selected_climate_variable_cols = columns_to_plot
-
-    print("Plotting trends and hotspot frequencies...")
 
     # 1. Configuración del Lienzo
     fig, ax_base = plt.subplots(figsize=(16, 7.5))
@@ -215,7 +222,6 @@ def plot_all_climate_variables_time_series(df_input, title_suffix="Evolución a 
         df_summary_var = analyze_climate_by_quarter(df_input, climate_variable_column_name=col_name)
 
         if df_summary_var.empty:
-            print(f"Warning: No data for {col_name}, skipping.")
             line_placeholder, = ax.plot([], [], color=colors[i], linestyle='--', label=f'{col_name} (Sin Datos)')
             lines_all.append(line_placeholder)
             labels_all.append(line_placeholder.get_label())
@@ -288,7 +294,7 @@ def plot_all_climate_variables_time_series(df_input, title_suffix="Evolución a 
     # Distribución de márgenes (Izquierda para barras, Derecha para los 4 ejes climáticos flotantes)
     plt.subplots_adjust(bottom=0.20, left=0.08, right=0.76)
 
-    plt.show()
+    return fig
 
 
 def plot_hexagonal_map(gdf, column='temperature', title='Mapa Hexagonal', cmap='viridis', steps=None):
