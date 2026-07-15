@@ -289,3 +289,61 @@ def plot_all_climate_variables_time_series(df_input, title_suffix="Evolución a 
     plt.subplots_adjust(bottom=0.20, left=0.08, right=0.76)
 
     plt.show()
+
+
+def plot_hexagonal_map(gdf, column='temperature', title='Mapa Hexagonal', cmap='viridis', steps=None):
+    """
+    Genera un mapa interactivo con hexágonos, donde la intensidad del color
+    depende del campo seleccionado.
+
+    Parameters:
+    -----------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame con la geometría de los hexágonos y los datos a visualizar.
+    column : str, optional
+        El nombre de la columna numérica a representar en el mapa.
+    title : str, optional
+        Título del mapa.
+    cmap : str, optional
+        Mapa de color a utilizar (por ejemplo, 'viridis', 'magma', 'Blues').
+    steps : int, optional
+        Número de intervalos discretos (bins) para el mapa de color.
+        Si es None, el mapa de color será continuo.
+    """
+    if column not in gdf.columns:
+        print(f"Error: La columna '{column}' no se encuentra en el GeoDataFrame.")
+        print(f"Columnas disponibles: {list(gdf.columns)}")
+        return
+
+    # Configuramos los argumentos adicionales para discretizar el mapa de color
+    extra_kwds = {}
+    if steps is not None:
+        """
+        El tipo de distribución (scheme='Quantiles'):
+          'Quantiles' (divide los datos en grupos con la misma cantidad de registros), pero dependiendo de tus datos de temperatura podrías preferir:
+          'EqualInterval': Divide el rango de datos en intervalos de igual tamaño numérico.
+          'FisherJenks': Agrupa los datos buscando optimizar la varianza interna de cada grupo (ideal para mapas temáticos).
+        """
+        extra_kwds['scheme'] = 'FisherJenks'  # Puedes usar 'FisherJenks', 'EqualInterval', 'Quantiles', etc.
+        extra_kwds['k'] = steps
+
+    # Crear un mapa interactivo con geopandas.explore()
+    m = gdf.explore(
+        column=column,
+        cmap=cmap,
+        tooltip=[column, 'number_hotspots', 'land_cover'],
+        popup=True,
+        tiles='CartoDB positron',
+        legend=True,
+        legend_kwds={'caption': f'{title} ({column})'},
+        **extra_kwds  # Desempaquetamos el esquema y los steps si fueron definidos
+    )
+
+    # Añadir el título al mapa
+    import folium
+    title_html = f'''
+                 <h3 align="center" style="font-size:16px"><b>{title}</b></h3>
+                 '''
+    m.get_root().html.add_child(folium.Element(title_html))
+
+    return m
