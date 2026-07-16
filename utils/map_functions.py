@@ -3,17 +3,21 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from shapely.geometry import MultiPolygon, Point, Polygon
+from shapely import wkt
 
 
 @st.cache_data
-def crear_rejilla_hexagonal_4326(gdf_roi, radio_km):
+def crear_rejilla_hexagonal_4326(_gdf_roi, radio_km):
     """
     Toma un GeoDataFrame en EPSG:4326, lo proyecta a un sistema métrico local,
     genera los hexágonos de 'radio_km' y los devuelve en EPSG:4326.
+    
+    Nota: El guion bajo en '_gdf_roi' evita que Streamlit intente hashear 
+    el GeoDataFrame, previniendo el error de UnhashableParamError.
     """
     # 1. Proyectar a un sistema métrico local automáticamente (UTM ideal para la zona)
-    crs_metrico = gdf_roi.estimate_utm_crs()
-    roi_proyectada = gdf_roi.to_crs(crs_metrico)
+    crs_metrico = _gdf_roi.estimate_utm_crs()
+    roi_proyectada = _gdf_roi.to_crs(crs_metrico)
 
     # Combinar en una sola geometría si el ROI tiene múltiples filas/polígonos
     poligono_union = roi_proyectada.union_all()
@@ -63,12 +67,12 @@ def crear_rejilla_hexagonal_4326(gdf_roi, radio_km):
 
 
 @st.cache_data
-def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
+def procesar_datos_hexagonales(_gdf_hexagonos, df_datos):
     """
     Procesa datos de hexágonos y puntos para generar un resumen por hexágono.
     """
     # Crear copias para no modificar los originales
-    gdf_hex = gdf_hexagonos.copy()
+    gdf_hex = _gdf_hexagonos.copy()
     df_datos = df_datos.copy()
 
     # Asegurar que el CRS sea compatible
@@ -142,15 +146,26 @@ def procesar_datos_hexagonales(gdf_hexagonos, df_datos):
 
 
 @st.cache_data
-def procesar_datos_hexagonales_con_geometria(gdf_hexagonos, df_datos):
+def procesar_datos_hexagonales_con_geometria(_gdf_hexagonos, df_datos):
     """
     Versión que también mantiene la geometría de los hexágonos en el resultado.
     """
     # Obtener el DataFrame resumen
-    df_resultado = procesar_datos_hexagonales(gdf_hexagonos, df_datos)
+    df_resultado = procesar_datos_hexagonales(_gdf_hexagonos, df_datos)
 
     # Unir con la geometría de los hexágonos
-    gdf_resultado = gdf_hexagonos[["geometry"]].copy()
+    gdf_resultado = _gdf_hexagonos[["geometry"]].copy()
     gdf_resultado = gdf_resultado.merge(df_resultado, left_index=True, right_on="index")
 
     return gdf_resultado
+
+
+@st.cache_data
+def load_roi(roi_path):
+    """
+    Carga un archivo GeoJSON o Shapefile y devuelve un GeoDataFrame.
+    """
+    roi_df = pd.read_csv(roi_path)
+    roi_df["geometry"] = roi_df['geometry'].apply(wkt.loads)
+    roi_gpd = gpd.GeoDataFrame(roi_df, geometry='geometry', crs="EPSG:4326")
+    return roi_gpd
