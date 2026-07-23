@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+from data.name_mappings import climate_vars_name_mapping, spectral_index_name_mapping
 
 from utils.map_functions import (
     crear_rejilla_hexagonal_4326,
@@ -78,6 +80,47 @@ def render_hexagonal_map(df_data=None):
         df_data: DataFrame con los datos filtrados.
     """
     st.subheader("🗺️ Mapa de Rejilla Hexagonal")
+
+    # filtro de ventana de tiempo para el mapa
+    time_window = st.selectbox(
+        "Selecciona la ventana de tiempo para el mapa:",
+        options=["7 días antes", "dia de la deteccion", "7 días despues"],
+        index=1,
+    )
+
+    # Mapeo de la ventana elegida a la clave interna del diccionario ('b' = before, 'o' = on-day, 'a' = after)
+    key_mapping = {
+        "7 días antes": ("b", "Mostrando datos de focos de calor 7 días antes de la fecha de adquisición."),
+        "dia de la deteccion": ("o", "Mostrando datos de focos de calor del día de la detección."),
+        "7 días despues": ("a", "Mostrando datos de focos de calor 7 días después de la fecha de adquisición.")
+    }
+
+    target_key, info_message = key_mapping[time_window]
+    st.info(info_message)
+
+    def extract_nested_dict(series, key):
+        """Extrae la subclave (b, o, a) de cada fila y la convierte en un DataFrame."""
+        extracted = series.apply(lambda x: x.get(key, {}) if isinstance(x, dict) else {})
+        return pd.json_normalize(extracted)
+
+    # Extraer y renombrar las variables climáticas e índices espectrales
+    climate_vars_df = extract_nested_dict(df_data["climate_vars"], target_key).rename(columns=climate_vars_name_mapping)
+    spectral_indices_df = extract_nested_dict(df_data["spectral_index"], target_key).rename(columns=spectral_index_name_mapping)
+
+    # Asegurar que los índices coincidan antes del concat
+    climate_vars_df.index = df_data.index
+    spectral_indices_df.index = df_data.index
+
+
+    # Unir todo eliminando las columnas anidadas originales
+    df_data = pd.concat(
+        [df_data.drop(columns=["climate_vars", "spectral_index"]), climate_vars_df, spectral_indices_df],
+        axis=1
+    )
+            
+    # Debug 
+    st.dataframe(df_data, width="stretch")
+    
     # carga de roi
     gdf_roi = load_roi("data/cordillera_central_prescisa_roi.csv")
 

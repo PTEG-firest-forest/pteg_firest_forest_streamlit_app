@@ -54,6 +54,7 @@ class mongo_connector:
         pipeline = [
             {
                 "$project": {
+                    "idx": 1,
                     "year": {"$year": "$date"},
                     "quarter": {"$ceil": {"$divide": [{"$month": "$date"}, 3]}},
                     # Traemos los campos planos y anidados necesarios
@@ -66,7 +67,8 @@ class mongo_connector:
                     "inst": 1,
                     "bt4": 1,
                     "cv": 1,
-                    "si": 1
+                    "si": 1,
+                    "lc_class": 1,
                 }
             },
             {
