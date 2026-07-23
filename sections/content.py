@@ -137,8 +137,8 @@ def render_hexagonal_map(df_data=None):
         axis=1,
     )
 
-    # Debug
-    st.dataframe(df_data, width="stretch")
+    # Debug - Eliminamos la columna 'geometry' para evitar errores de PyArrow al mostrar el DataFrame
+    st.dataframe(df_data.drop(columns=["geometry"], errors="ignore"), width="stretch")
 
     # carga de roi
     gdf_roi = load_roi("data/cordillera_central_prescisa_roi.csv")
@@ -155,7 +155,10 @@ def render_hexagonal_map(df_data=None):
         gdf_resultado = procesar_datos_hexagonales_con_geometria(
             _gdf_hexagonos=gdf_hex, df_datos=df_data
         )
-        st.dataframe(gdf_resultado, width="stretch")
+        
+        # Debug - Eliminamos la columna 'geometry' para evitar errores de PyArrow al mostrar el DataFrame
+        st.dataframe(gdf_resultado.drop(columns=["geometry"], errors="ignore"), width="stretch")
+        
         # Mostrar el mapa usando Streamlit
         
         # Eliminamos filas con latitud o longitud nula para evitar errores en st.map()
