@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 from pymongo import MongoClient
+from data.name_mappings import hotspots_data_name_mapping, climate_vars_name_mapping, spectral_index_name_mapping
 
 # **************************************************************
 # MongoDB Connector Class
@@ -53,6 +54,7 @@ class mongo_connector:
         pipeline = [
             {
                 "$project": {
+                    "idx": 1,
                     "year": {"$year": "$date"},
                     "quarter": {"$ceil": {"$divide": [{"$month": "$date"}, 3]}},
                     # Traemos los campos planos y anidados necesarios
@@ -65,7 +67,8 @@ class mongo_connector:
                     "inst": 1,
                     "bt4": 1,
                     "cv": 1,
-                    "si": 1
+                    "si": 1,
+                    "lc_class": 1,
                 }
             },
             {
@@ -79,6 +82,7 @@ class mongo_connector:
         try:
             cursor = self.collection.aggregate(pipeline)
             df = pd.DataFrame(list(cursor))
+            df.rename(columns=hotspots_data_name_mapping, inplace=True)
             if not df.empty:
                 # Limpiar la columna _id de BSON a string para evitar problemas de serialización en Streamlit
                 df["_id"] = df["_id"].astype(str)
