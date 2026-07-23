@@ -118,7 +118,7 @@ def procesar_datos_hexagonales(_gdf_hexagonos, df_datos):
         }
     ).reset_index()
 
-    # Renombrar columnas
+    # Renombrar columnas para que sean compatibles con st.map()
     df_agregado.columns = [
         "index",
         "temperature",
@@ -127,8 +127,8 @@ def procesar_datos_hexagonales(_gdf_hexagonos, df_datos):
         "ndvi",
         "ndmi",
         "land_cover",
-        "hotspot_mean_longitude",
-        "hotspot_mean_latitude",
+        "latitude",
+        "longitude",
         "hotspot_earliest_acq_date",
         "number_hotspots",
     ]
