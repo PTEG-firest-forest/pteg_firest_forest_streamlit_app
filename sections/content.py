@@ -8,6 +8,7 @@ from utils.map_functions import (
     load_roi,
     procesar_datos_hexagonales_con_geometria,
 )
+from utils.plot_functions import plot_hexagonal_map
 
 
 def render_content(df_data, selected_year, selected_quarter):
@@ -80,32 +81,17 @@ def render_hexagonal_map(df_data=None):
     Args:
         df_data: DataFrame con los datos filtrados.
     """
+    from data.name_mappings import selection_detection_day_mapping, selection_detection_day_values,selection_map_fields_values,selection_map_fields_mapping
     st.subheader("🗺️ Mapa de Rejilla Hexagonal")
 
     # filtro de ventana de tiempo para el mapa
     time_window = st.selectbox(
         "Selecciona la ventana de tiempo para el mapa:",
-        options=["7 días antes", "dia de la deteccion", "7 días despues"],
+        options=selection_detection_day_values,
         index=1,
     )
 
-    # Mapeo de la ventana elegida a la clave interna del diccionario ('b' = before, 'o' = on-day, 'a' = after)
-    key_mapping = {
-        "7 días antes": (
-            "b",
-            "Mostrando datos de focos de calor 7 días antes de la fecha de adquisición.",
-        ),
-        "dia de la deteccion": (
-            "o",
-            "Mostrando datos de focos de calor del día de la detección.",
-        ),
-        "7 días despues": (
-            "a",
-            "Mostrando datos de focos de calor 7 días después de la fecha de adquisición.",
-        ),
-    }
-
-    target_key, info_message = key_mapping[time_window]
+    target_key, info_message = selection_detection_day_mapping[time_window]
     st.info(info_message)
 
     def extract_nested_dict(series, key):
@@ -155,43 +141,17 @@ def render_hexagonal_map(df_data=None):
         gdf_resultado = procesar_datos_hexagonales_con_geometria(
             _gdf_hexagonos=gdf_hex, df_datos=df_data
         )
-        
-        # Debug - Eliminamos la columna 'geometry' para evitar errores de PyArrow al mostrar el DataFrame
-        st.dataframe(gdf_resultado.drop(columns=["geometry"], errors="ignore"), width="stretch")
-        
-        # Mostrar el mapa usando Streamlit
-        
-        # Eliminamos filas con latitud o longitud nula para evitar errores en st.map()
-        gdf_resultado_map = gdf_resultado.dropna(subset=["latitude", "longitude"])
 
-        # 2. Convertir la geometría a GeoJSON para PyDeck
-        geojson_data = gdf_resultado_map.__geo_interface__
-
-        # 3. Definir la capa del mapa
-        layer = pdk.Layer(
-            "GeoJsonLayer",
-            geojson_data,
-            opacity=0.4,
-            stroked=True,
-            filled=True,
-            get_fill_color="[255, 69, 0, 160]",
-            get_line_color="[255, 255, 255, 200]",
-            get_line_width=2,
-            pickable=True,
+        column_to_show = st.selectbox(
+            "selecciona el tipo de dato a mostrar en el mapa:",
+            options=selection_map_fields_values,
+            index=0,
         )
 
-        # 4. Configurar la vista centrada en los datos
-        view_state = pdk.ViewState(
-            latitude=gdf_resultado_map["latitude"].mean(),
-            longitude=gdf_resultado_map["longitude"].mean(),
-            zoom=8,
-        )
-
-        # 5. Renderizar el mapa
-        st.pydeck_chart(
-            pdk.Deck(
-                layers=[layer],
-                initial_view_state=view_state,
-                tooltip={"text": "Focos: {number_hotspots}\nTemp: {temperature}°C"}
-            )
+        hexagonal_map = plot_hexagonal_map(
+            _gdf=gdf_resultado,
+            column=column_to_show,
+            title=selection_map_fields_mapping[column_to_show]["title"],
+            cmap=selection_map_fields_mapping[column_to_show]["cmap"],
+            steps=10,
         )
